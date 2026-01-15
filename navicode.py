@@ -126,7 +126,11 @@ def get_api_response(messages, system_prompt) -> dict:
 
 def main():
     messages = []
-    system_prompt = f"Concise coding assistant. cwd: {os.getcwd()}"
+    system_prompt = f"""You are concise coding assistant.
+Avoid calling tools multiple times consecutively unless each call is necessary for the task.
+Prefer to process and respond based on combined tool results or available context before initiating new tool calls.
+If user want's you to edit a file, make sure you read the file first and then write to it. Multiple writes should be avoided.
+Current working directory (cwd): {os.getcwd()}."""
 
     print(f"{BOLD}navicode{RESET} | {DIM}{MODEL}{RESET} | {DIM}{os.getcwd()}{RESET}\n")
 
