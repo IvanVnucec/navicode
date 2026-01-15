@@ -38,10 +38,17 @@ def list_dir(args):
         output = []
         for item in sorted(items):
             full_path = os.path.join(path, item)
+            types = []
+            if os.path.islink(full_path):
+                types.append("link")
             if os.path.isdir(full_path):
-                output.append(f"[{item}]")
+                types.append("dir")
+            elif os.path.isfile(full_path):
+                types.append("file")
             else:
-                output.append(item)
+                types.append("other")
+            types_str = "|".join(types)
+            output.append(f"{types_str} {item}")
         return "\n".join(output)
     except Exception as err:
         return f"error: {err}"
@@ -53,7 +60,7 @@ TOOLS = {
             "type": "function",
             "function": {
                 "name": "read",
-                "description": "Read file (absolute file path)",
+                "description": "Read file (absolute or relative to cwd)",
                 "parameters": {
                     "type": "object",
                     "properties": {
