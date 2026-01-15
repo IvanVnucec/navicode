@@ -1,6 +1,7 @@
 import urllib.request
 import json
 import os
+import readline
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 MODEL = os.getenv("MODEL")
@@ -141,42 +142,54 @@ Current working directory (cwd): {os.getcwd()}."""
 
     print(f"{BOLD}navicode{RESET} | {DIM}{MODEL}{RESET} | {DIM}{os.getcwd()}{RESET}\n")
 
-    while True:
+    history_file = os.path.expanduser("~/.navicode_history")
+    try:
+        readline.read_history_file(history_file)
+    except:
+        pass
+
+    try:
+        while True:
+            try:
+                user_input = input(f"{BOLD}{BLUE}>{RESET} ").strip()
+                if not user_input:
+                    continue
+                messages.append({"role": "user", "content": user_input})
+
+                while True:
+                    response = get_api_response(messages, system_prompt)
+                    if DEBUG >= 2: print(f"{DIM}{json.dumps(response, indent=2)}{RESET}")
+
+                    choices = response["choices"]
+                    assert len(choices) == 1
+                    if DEBUG >= 1: print(f"{DIM}{choices[0]['finish_reason']}{RESET}")
+
+                    message = choices[0]["message"]
+                    content = message["content"]
+                    if len(content):
+                        print(f"{CYAN}{content}{RESET}")
+                        messages.append({"role": "assistant", "content": content})
+
+                    tool_calls = message.get("tool_calls")
+                    if not tool_calls:
+                        break
+                    assert len(tool_calls) == 1
+                    function = tool_calls[0]["function"]
+                    id = tool_calls[0]["id"]
+                    fname = function["name"]
+                    fargs = json.loads(function["arguments"])
+                    print(f"{DIM}Calling: {fname}({fargs}){RESET}")
+                    tool_result = run_tool(fname, fargs)
+                    messages.append({"role": "tool", "tool_call_id": id, "content": tool_result})
+
+                print()
+            except KeyboardInterrupt:
+                break
+    finally:
         try:
-            user_input = input(f"{BOLD}{BLUE}>{RESET} ").strip()
-            if not user_input:
-                continue
-            messages.append({"role": "user", "content": user_input})
-
-            while True:
-                response = get_api_response(messages, system_prompt)
-                if DEBUG >= 2: print(f"{DIM}{json.dumps(response, indent=2)}{RESET}")
-
-                choices = response["choices"]
-                assert len(choices) == 1
-                if DEBUG >= 1: print(f"{DIM}{choices[0]['finish_reason']}{RESET}")
-
-                message = choices[0]["message"]
-                content = message["content"]
-                if len(content):
-                    print(f"{CYAN}{content}{RESET}")
-                    messages.append({"role": "assistant", "content": content})
-
-                tool_calls = message.get("tool_calls")
-                if not tool_calls:
-                    break
-                assert len(tool_calls) == 1
-                function = tool_calls[0]["function"]
-                id = tool_calls[0]["id"]
-                fname = function["name"]
-                fargs = json.loads(function["arguments"])
-                print(f"{DIM}Calling: {fname}({fargs}){RESET}")
-                tool_result = run_tool(fname, fargs)
-                messages.append({"role": "tool", "tool_call_id": id, "content": tool_result})
-
-            print()
-        except KeyboardInterrupt:
-            break
+            readline.write_history_file(history_file)
+        except:
+            pass
 
 if __name__ == "__main__":
     main()
