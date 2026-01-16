@@ -31,8 +31,14 @@ def truncate_for_print(obj, max_len=100):
 
 def read(args):
     try:
-        lines = enumerate(open(args["path"], encoding="utf-8").readlines())
-        return "".join(f"{idx}| {line}" for idx, line in lines)
+        with open(args["path"], encoding="utf-8") as f:
+            all_lines = f.readlines()
+        offset = args.get("offset", 0)
+        limit = args.get("limit")
+        start = max(0, offset)
+        end = None if limit is None else start + limit
+        selected_lines = enumerate(all_lines[start:end], start=start)
+        return "".join(f"{idx}| {line}" for idx, line in selected_lines)
     except Exception as err:
         return f"error: {err}"
 
@@ -84,6 +90,8 @@ TOOLS = {
                     "type": "object",
                     "properties": {
                         "path": {"type": "string"},
+                        "offset": {"type": "integer", "description": "Starting line number (0-based, optional)"},
+                        "limit": {"type": "integer", "description": "Maximum number of lines to read (optional)"},
                     },
                     "required": ["path"]
                 }
