@@ -49,6 +49,26 @@ def write(args):
     except Exception as err:
         return f"error: {err}"
 
+def edit(args):
+    try:
+        with open(args["path"], "r", encoding="utf-8") as f:
+            content = f.read()
+        old = args["old"]
+        new = args["new"]
+        count = content.count(old)
+        all_replace = args.get("all", False)
+        if count == 0:
+            return f"error: '{old}' not found in file."
+        if not all_replace and count > 1:
+            return f"error: '{old}' is not unique (appears {count} times). Use all=true to replace all occurrences."
+        new_content = content.replace(old, new)
+        with open(args["path"], "w", encoding="utf-8") as f:
+            f.write(new_content)
+        return f"Replaced {count} occurrence(s) successfully."
+    except Exception as err:
+        return f"error: {err}"
+
+
 def list_dir(args):
     try:
         path = args["path"]
@@ -112,6 +132,26 @@ TOOLS = {
                         "content": {"type": "string"},
                     },
                     "required": ["path", "content"]
+                }
+            }
+        }
+    },
+    "edit": {
+        "call": edit,
+        "schema": {
+            "type": "function",
+            "function": {
+                "name": "edit",
+                "description": "Edit file by replacing old string with new string (absolute or relative to cwd)",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string"},
+                        "old": {"type": "string"},
+                        "new": {"type": "string"},
+                        "all": {"type": "boolean", "description": "If true, replace all occurrences. Otherwise, old must be unique."}
+                    },
+                    "required": ["path", "old", "new"]
                 }
             }
         }
