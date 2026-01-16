@@ -1,6 +1,6 @@
 # navicode
 
-A custom coding assistant CLI tool using OpenRouter's API.
+A custom coding assistant CLI tool using OpenRouter's API. The core idea is for the AI to autonomously improve its script without human intervention, relying only on prompting.
 
 ## Features
 
