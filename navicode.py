@@ -2,6 +2,7 @@ import urllib.request
 import json
 import os
 import readline
+import subprocess
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 MODEL = os.getenv("MODEL")
@@ -17,6 +18,16 @@ RESET, BOLD, DIM, BLUE, CYAN, GREEN, YELLOW, RED = (
     "\033[33m",
     "\033[31m",
 )
+
+def truncate_for_print(obj, max_len=100):
+    if isinstance(obj, str) and len(obj) > max_len:
+        return obj[:max_len] + '...'
+    elif isinstance(obj, dict):
+        return {k: truncate_for_print(v, max_len) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [truncate_for_print(i, max_len) for i in obj]
+    else:
+        return obj
 
 def read(args):
     try:
@@ -51,6 +62,13 @@ def list_dir(args):
             types_str = "|".join(types)
             output.append(f"{types_str} {item}")
         return "\n".join(output)
+    except Exception as err:
+        return f"error: {err}"
+
+def run_bash(args):
+    try:
+        result = subprocess.run(args["command"], shell=True, capture_output=True, text=True, cwd=os.getcwd())
+        return f"STDOUT:\n{result.stdout.strip()}\nSTDERR:\n{result.stderr.strip()}\nReturn code: {result.returncode}"
     except Exception as err:
         return f"error: {err}"
 
@@ -103,6 +121,23 @@ TOOLS = {
                         "path": {"type": "string"}
                     },
                     "required": ["path"]
+                }
+            }
+        }
+    },
+    "bash": {
+        "call": run_bash,
+        "schema": {
+            "type": "function",
+            "function": {
+                "name": "bash",
+                "description": "Execute a bash command (absolute or relative to cwd)",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "command": {"type": "string"},
+                    },
+                    "required": ["command"]
                 }
             }
         }
@@ -173,14 +208,14 @@ Current working directory (cwd): {os.getcwd()}."""
                     tool_calls = message.get("tool_calls")
                     if not tool_calls:
                         break
-                    assert len(tool_calls) == 1
-                    function = tool_calls[0]["function"]
-                    id = tool_calls[0]["id"]
-                    fname = function["name"]
-                    fargs = json.loads(function["arguments"])
-                    print(f"{DIM}Calling: {fname}({fargs}){RESET}")
-                    tool_result = run_tool(fname, fargs)
-                    messages.append({"role": "tool", "tool_call_id": id, "content": tool_result})
+                    for tool_call in tool_calls:
+                        function = tool_call["function"]
+                        id = tool_call["id"]
+                        fname = function["name"]
+                        fargs = json.loads(function["arguments"])
+                        print(f"{DIM}Calling: {fname}({truncate_for_print(fargs)}){RESET}")
+                        tool_result = run_tool(fname, fargs)
+                        messages.append({"role": "tool", "tool_call_id": id, "content": tool_result})
 
                 print()
             except KeyboardInterrupt:
